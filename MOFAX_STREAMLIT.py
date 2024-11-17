@@ -196,14 +196,7 @@ if model_file:
     with tab1:
         st.markdown("### Top Feature Weights")
         with st.container():
-            ax_weights = mfx.plot_weights_heatmap(
-                m, 
-                n_features=n_features,  
-                factors=range(0, 10),
-                xticklabels_size=6, 
-                w_abs=True,
-                cmap="viridis"
-            )
+            ax_weights = mfx.plot_weights_heatmap(m, n_features=10)
             plt.tight_layout()
             st.pyplot(ax_weights.figure)
 
