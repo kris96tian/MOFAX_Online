@@ -1,5 +1,7 @@
 streamlit
 mofax
+mofapy2
 plotly
 pandas
 matplotlib
+seaborn
