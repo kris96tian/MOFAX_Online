@@ -203,48 +203,23 @@ if model_file:
     with tab2:
         st.markdown("### Weights Ranked by Factor")
         try:
-            ax_ranked = mfx.plot_weights_ranked(
-                m, 
-                factor=selected_factor, 
-                n_features=n_features,
-                y_repel_coef=0.04, 
-                x_rank_offset=-150
-            )
+            ax = mfx.plot_weights_ranked(m, factor=2, n_features=10, y_repel_coef=0.04, x_rank_offset=-150)
             plt.tight_layout()
-            st.pyplot(ax_ranked.figure)
+            st.pyplot(ax.figure)
         except Exception as e:
             st.error(f"Failed to plot ranked weights: {str(e)}")
 
     with tab3:
         st.markdown("### Variance Explained Analysis")
-        variance_df = m.get_r2(factors=list(range(selected_factor))).sort_values("R2", ascending=False)
-        
-        # Create a bar chart for variance explained
-        fig = px.bar(variance_df.head(10), 
-                    y='R2', 
-                    title='Top 10 Variance Explained by Factor',
-                    labels={'R2': 'R² Value'},
-                    template='plotly_white')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        with st.expander("View Detailed Data"):
-            st.dataframe(variance_df)
+        variance_df = m.get_r2(factors=list(range(2))).sort_values("R2", ascending=False)
+        print('\n')
+        st.dataframe(m.get_r2(factors=list(range(4))).sort_values("R2", ascending=False))
 
     with tab4:
-        st.markdown("### Factor Correlation Analysis")
+        st.markdown("### Factor Correlation Analysis (Pearson)")
         correlation_matrix = m.get_weights(df=True).corr()
-        fig_corr = px.imshow(
-            correlation_matrix,
-            title="Factor Correlation Matrix",
-            color_continuous_scale="RdBu",
-            template="plotly_white"
-        )
-        fig_corr.update_layout(
-            margin=dict(l=20, r=20, t=40, b=20),
-            height=600
-        )
-        st.plotly_chart(fig_corr, use_container_width=True)
-
+        mfx.plot_factors_correlation(m); plt.title("Pearson r")
+        st.pyplot() 
 else:
     # Welcome message with improved styling
     st.markdown("""
