@@ -201,7 +201,7 @@ if model_file:
             st.pyplot(ax_weights.figure)
 
     with tab2:
-        st.markdown("### Weights Ranked by Factor")
+        st.markdown("### Making subplots ")
         try:
             nf = 2  # specify number of rows & columns
             f, axarr = plt.subplots(nf, nf, figsize=(10,10))
