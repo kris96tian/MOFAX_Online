@@ -211,7 +211,7 @@ if model_file:
                     mfx.plot_weights_ranked(m,factor=fnum, ax=axarr[i][j], n_features=10, x_rank_offset=50, y_repel_coef=0.05, attract_to_points=False)
                 fnum+=1
             plt.tight_layout()
-            st.pyplot(ax.figure)
+            st.pyplot()
         except Exception as e:
             st.error(f"Failed to plot ranked weights: {str(e)}")
 
