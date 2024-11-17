@@ -203,7 +203,7 @@ if model_file:
     with tab2:
         st.markdown("### Weights Ranked by Factor")
         try:
-            ax = mfx.plot_weights_ranked(m, factor=2, n_features=10, y_repel_coef=0.04, x_rank_offset=-150)
+            ax = mfx.plot_weights_ranked(m, factor=2, n_features=5, y_repel_coef=0.04, x_rank_offset=-150)
             plt.tight_layout()
             st.pyplot(ax.figure)
         except Exception as e:
