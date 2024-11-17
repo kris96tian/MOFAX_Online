@@ -1,124 +1,270 @@
-# mofa_streamlit_app.py
 import streamlit as st
 import mofax as mfx
 import plotly.express as px
 import pandas as pd
 import matplotlib.pyplot as plt
 import tempfile
-st.set_page_config(page_title="MOFA+ Model Exploration", layout="wide")
+import warnings
+warnings.filterwarnings("ignore")
 
-# CSS Styling from HTML example
+# Page configuration with custom theme
+st.set_page_config(
+    page_title="MOFA+ Model Explorer",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS with modern styling
 st.markdown("""
     <style>
-    body { font-family: "Helvetica Neue", "Open Sans", sans-serif; -webkit-font-smoothing: antialiased; }
-    h2 { font-size: 24pt; color: #0E2C37; padding: 20px 5px; }
-    .container-fluid { background-color: #282C2F; color: white; }
-    .tab-header { background-color: #F0F0F0; color: #555555; }
-    .active-tab { background-color: white; color: #0E2C37; }
-    .description { color: #999999; margin: 20px 0; }
-    a { color: #999999; text-decoration: underline; }
-    a:hover { color: white; }
+    /* Main layout and typography */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    .main {
+        background-color: #f8f9fa;
+        padding: 2rem;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        color: #1a1f36;
+    }
+    
+    /* Custom title styling */
+    .custom-title {
+        background: linear-gradient(120deg, #2b5876, #4e4376);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Card-like containers */
+    .stDataFrame {
+        border: 1px solid #e1e4e8;
+        border-radius: 10px;
+        padding: 1rem;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Metrics styling */
+    .metric-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid #e1e4e8;
+        margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-label {
+        color: #6b7280;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-value {
+        color: #1a1f36;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    /* Button styling */
+    .stButton button {
+        background: linear-gradient(90deg, #2b5876, #4e4376);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #f1f5f9;
+        padding: 2rem 1rem;
+    }
+    
+    /* Plot containers */
+    .plot-container {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Set up the Streamlit app title and sidebar
-st.title("MOFA+ Model Exploration")
-st.sidebar.header("Upload MOFA+ Model (.hdf5)")
+# Custom title with gradient background
+st.markdown("""
+    <div class="custom-title">
+        <h1 style='margin:0'>MOFA+ Model Explorer</h1>
+        <p style='margin:0;opacity:0.8;font-size:1.1em'>Analyze and visualize multi-omics factor analysis results</p>
+    </div>
+""", unsafe_allow_html=True)
 
-# Upload model file
-model_file = st.sidebar.file_uploader("Upload file", type=["hdf5"])
+# Sidebar with improved styling
+with st.sidebar:
+    st.markdown("### Model Configuration")
+    model_file = st.file_uploader("Upload MOFA+ Model (.hdf5)", type=["hdf5"])
 
 if model_file:
-    # Save the uploaded file to a temporary location
+    # Save the uploaded file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5") as tmp_file:
         tmp_file.write(model_file.read())
         temp_filepath = tmp_file.name
 
-    # Initialize MOFA model with mofax
+    # Initialize MOFA model
     m = mfx.mofa_model(temp_filepath)
 
-    # Display basic model information
-    st.subheader("Basic Model Features")
-    st.write(f"**Cells**: {m.shape[0]}")
-    st.write(f"**Features**: {m.shape[1]}")
-    st.write(f"**Groups**: {', '.join(m.groups)}")
-    st.write(f"**Views**: {', '.join(m.views)}")
+    # Create three columns for metrics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+            <div class="metric-container">
+                <div class="metric-label">Total Cells</div>
+                <div class="metric-value">{:,}</div>
+            </div>
+        """.format(m.shape[0]), unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+            <div class="metric-container">
+                <div class="metric-label">Features</div>
+                <div class="metric-value">{:,}</div>
+            </div>
+        """.format(m.shape[1]), unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+            <div class="metric-container">
+                <div class="metric-label">Groups</div>
+                <div class="metric-value">{}</div>
+            </div>
+        """.format(len(m.groups)), unsafe_allow_html=True)
 
-    # Display HDF5 group structure and example data
-    st.subheader("Model Weights")
-    st.write("**HDF5 group structure:**")
-    st.write(m.weights)
+    # Sidebar controls with improved organization
+    with st.sidebar:
+        st.markdown("### Analysis Parameters")
+        selected_factor = st.selectbox("Select Factor", m.factors)
+        n_features = st.slider("Number of Features to Display", 
+                             min_value=1, 
+                             max_value=20, 
+                             value=5,
+                             help="Adjust the number of features shown in visualizations")
 
-    st.write("**Sample Weight Data (as ndarray):**")
-    st.write(m.get_weights()[:3, :5])
+        st.markdown("### Export Options")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("📥 Weights Data"):
+                weights_df = m.get_weights(df=True)
+                csv = weights_df.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=csv,
+                    file_name='weights_data.csv',
+                    mime='text/csv',
+                )
+        
+        with col2:
+            if st.button("📊 Variance Data"):
+                variance_df = m.calculate_variance_explained()
+                csv = variance_df.to_csv(index=False)
+                st.download_button(
+                    label="Download CSV",
+                    data=variance_df.to_csv(index=False),
+                    file_name='variance_explained.csv',
+                    mime='text/csv',
+                )
 
-    st.write("**Sample Weight Data (as DataFrame):**")
-    st.dataframe(m.get_weights(df=True).iloc[:3, :5])
+    # Main content area with tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Feature Weights", "Ranked Weights", "Variance Analysis", "Correlation Matrix"])
 
-    # Sidebar controls for interactivity
-   # selected_view = st.sidebar.selectbox("Select View", m.views)
-   # selected_group = st.sidebar.selectbox("Select Group", m.groups)
-   # selected_factor = st.sidebar.selectbox("Select Factor", m.factors)
+    with tab1:
+        st.markdown("### Top Feature Weights")
+        with st.container():
+            ax_weights = mfx.plot_weights_heatmap(
+                m, 
+                n_features=n_features,  
+                factors=range(0, 10),
+                xticklabels_size=6, 
+                w_abs=True,
+                cmap="viridis"
+            )
+            plt.tight_layout()
+            st.pyplot(ax_weights.figure)
 
-    # Sidebar input for number of features (for plot_weights_heatmap)
-    n_features = st.sidebar.number_input("Select Number of Features to Display", min_value=1, max_value=20, value=5)
-
-    # Interactive Data Analysis Features
-    ## 1. Plot Top Feature Weights
-    if st.checkbox("Plot Top Feature Weights"):
-        st.subheader("Top Feature Weights")
-        ax_weights = mfx.plot_weights_heatmap(
-            m, 
-            n_features=n_features,  # Use the dynamically set n_features
-            factors=range(0, 10),
-            xticklabels_size=6, 
-            w_abs=True,
-            cmap="viridis", 
-            cluster_factors=False
-        )
-        st.pyplot(ax_weights.figure)
-
-    if st.checkbox("Plot Weights correlation"):
-        st.subheader("Weights correlation")
+    with tab2:
+        st.markdown("### Weights Ranked by Factor")
         try:
-            ax_ranked = mfx.plot_weights_correlation(m)
+            ax_ranked = mfx.plot_weights_ranked(
+                m, 
+                factor=selected_factor, 
+                n_features=n_features,
+                y_repel_coef=0.04, 
+                x_rank_offset=-150
+            )
+            plt.tight_layout()
             st.pyplot(ax_ranked.figure)
         except Exception as e:
-            st.error(f"Failed to plot ranked weights: {e}")
+            st.error(f"Failed to plot ranked weights: {str(e)}")
 
-    ## 4. Factor Loadings
-    if st.checkbox("Plot Factor Loadings"):
-        st.subheader("Factor Loadings")
-        loadings = m.get_weights(df=True)
-        fig_loadings = px.bar(loadings, title="Factor Loadings")
-        st.plotly_chart(fig_loadings)
+    with tab3:
+        st.markdown("### Variance Explained Analysis")
+        variance_df = m.get_r2(factors=list(range(selected_factor))).sort_values("R2", ascending=False)
+        
+        # Create a bar chart for variance explained
+        fig = px.bar(variance_df.head(10), 
+                    y='R2', 
+                    title='Top 10 Variance Explained by Factor',
+                    labels={'R2': 'R² Value'},
+                    template='plotly_white')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        with st.expander("View Detailed Data"):
+            st.dataframe(variance_df)
 
-    ## 5. Correlation Matrix
-    if st.checkbox("Show Factor Correlation Matrix"):
-        st.subheader("Factor Correlation Matrix")
+    with tab4:
+        st.markdown("### Factor Correlation Analysis")
         correlation_matrix = m.get_weights(df=True).corr()
-        fig_corr = px.imshow(correlation_matrix, title="Factor Correlation Matrix")
-        st.plotly_chart(fig_corr)
+        fig_corr = px.imshow(
+            correlation_matrix,
+            title="Factor Correlation Matrix",
+            color_continuous_scale="RdBu",
+            template="plotly_white"
+        )
+        fig_corr.update_layout(
+            margin=dict(l=20, r=20, t=40, b=20),
+            height=600
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
 
-    ## 6. Data Download Options
-    st.sidebar.subheader("Download Data")
-    if st.sidebar.button("Download Weights Data as CSV"):
-        weights_df = m.get_weights(df=True)
-        csv = weights_df.to_csv(index=False)
-        st.sidebar.download_button(
-            label="weights_data.csv",
-            data=csv,
-            file_name='weights_data.csv',
-            mime='text/csv',
-        )
-    elif st.sidebar.button("Download Variance Explained as CSV"):
-        dfff = m.calculate_variance_explained()
-        csv = dfff.to_csv(index=False)
-        st.sidebar.download_button(
-            label="variance_explained.csv",
-            data=csv,
-            file_name='variance_explained.csv',
-            mime='text/csv',
-        )
 else:
-    st.write("Please upload a MOFA+ .hdf5 file to analyze.")
+    # Welcome message with improved styling
+    st.markdown("""
+        <div style="text-align: center; padding: 4rem 2rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
+            <h2 style="color: #1a1f36; margin-bottom: 1rem;">Welcome to MOFA+ Model Explorer</h2>
+            <p style="color: #6b7280; font-size: 1.1em;">Please upload a MOFA+ .hdf5 file using the sidebar to begin your analysis.</p>
+        </div>
+    """, unsafe_allow_html=True)
+# Footer
+st.markdown("""
+        ---
+        **Created by Kristian Alikaj**  
+        For more, visit [My GitHub](https://github.com/kris96tian) or [My Portfolio Website](https://kris96tian.github.io/)
+    """)
+
