@@ -10,14 +10,12 @@ import seaborn as sns
 from gprofiler import GProfiler
 warnings.filterwarnings("ignore")
 
-# Page configuration with custom theme
 st.set_page_config(
     page_title="MOFA+ Model Explorer",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with modern styling
 st.markdown("""
     <style>
     /* Main layout and typography */
@@ -109,7 +107,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Custom title with gradient background
 st.markdown("""
     <div class="custom-title">
         <h1 style='margin:0'>MOFA+ Model Explorer</h1>
@@ -181,15 +178,12 @@ def plot_enrichment(factor, results, top_n=10):
     return fig
 
 if model_file:
-    # Save the uploaded file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5") as tmp_file:
         tmp_file.write(model_file.read())
         temp_filepath = tmp_file.name
 
-    # Initialize MOFA model
     m = mfx.mofa_model(temp_filepath)
 
-    # Create three columns for metrics
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -216,7 +210,6 @@ if model_file:
             </div>
         """.format(len(m.groups)), unsafe_allow_html=True)
 
-    # Sidebar controls with improved organization
     with st.sidebar:
         st.markdown("### Analysis Parameters")
         selected_factor = st.selectbox("Select Factor", m.factors)
@@ -251,7 +244,7 @@ if model_file:
                     mime='text/csv',
                 )
 
-    # Main content area with tabs
+    # main content area with tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Feature Weights", "Ranked Weights", "Variance Analysis", "Correlation Matrix", "Enrichment Analysis"])
 
 
@@ -265,7 +258,7 @@ if model_file:
     with tab2:
         st.markdown("### Making subplots ")
         try:
-            nf = 2  # specify number of rows & columns
+            nf = 2  
             f, axarr = plt.subplots(nf, nf, figsize=(10,10))
             fnum = 0
             for i in range(nf):
@@ -291,9 +284,7 @@ if model_file:
     
 
     with tab5:
-        st.markdown("### Enrichment Analysis")
-        
-        # Add controls for enrichment analysis
+        st.markdown("### Enrichment Analysis")        
         with st.container():
             col1, col2 = st.columns(2)
             with col1:
@@ -381,7 +372,7 @@ else:
             <p style="color: #6b7280; font-size: 1.1em;">Please upload a MOFA+ .hdf5 file using the sidebar to begin your analysis.</p>
         </div>
     """, unsafe_allow_html=True)
-# Footer
+
 st.markdown("""
         ---
         **Created by Kristian Alikaj**  
