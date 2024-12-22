@@ -8,6 +8,7 @@ import warnings
 import numpy as np
 import seaborn as sns
 from gprofiler import GProfiler
+
 warnings.filterwarnings("ignore")
 
 st.set_page_config(
@@ -113,10 +114,13 @@ st.markdown("""
         <p style='margin:0;opacity:0.8;font-size:1.1em'>Analyze and visualize multi-omics factor analysis results</p>
     </div>
 """, unsafe_allow_html=True)
-
 with st.sidebar:
     st.markdown("### Model Configuration")
     model_file = st.file_uploader("Upload MOFA+ Model (.hdf5)", type=["hdf5"])
+    if st.button("Run Glioblastoma Model"):
+        model_file = "model.hdf5"  
+    if st.button("Run Breast Cancer Model"):
+        model_file = "brmodel.hdf5"  
 
 def process_mofa_weights(model):
     weights = model.get_weights()
@@ -179,36 +183,24 @@ def plot_enrichment(factor, results, top_n=10):
 
 if model_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5") as tmp_file:
-        tmp_file.write(model_file.read())
-        temp_filepath = tmp_file.name
+        if isinstance(model_file, str): 
+            temp_filepath = model_file
+        else:
+            tmp_file.write(model_file.read())
+            temp_filepath = tmp_file.name
 
     m = mfx.mofa_model(temp_filepath)
 
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("""
-            <div class="metric-container">
-                <div class="metric-label">Total Cells</div>
-                <div class="metric-value">{:,}</div>
-            </div>
-        """.format(m.shape[0]), unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-container'><div class='metric-label'>Total Cells</div><div class='metric-value'>{m.shape[0]:,}</div></div>", unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
-            <div class="metric-container">
-                <div class="metric-label">Features</div>
-                <div class="metric-value">{:,}</div>
-            </div>
-        """.format(m.shape[1]), unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-container'><div class='metric-label'>Features</div><div class='metric-value'>{m.shape[1]:,}</div></div>", unsafe_allow_html=True)
     
     with col3:
-        st.markdown("""
-            <div class="metric-container">
-                <div class="metric-label">Groups</div>
-                <div class="metric-value">{}</div>
-            </div>
-        """.format(len(m.groups)), unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-container'><div class='metric-label'>Groups</div><div class='metric-value'>{len(m.groups)}</div></div>", unsafe_allow_html=True)
 
     with st.sidebar:
         st.markdown("### Analysis Parameters")
@@ -244,9 +236,7 @@ if model_file:
                     mime='text/csv',
                 )
 
-    # main content area with tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Feature Weights", "Ranked Weights", "Variance Analysis", "Correlation Matrix", "Enrichment Analysis"])
-
 
     with tab1:
         st.markdown("### Top Feature Weights")
@@ -256,15 +246,15 @@ if model_file:
             st.pyplot(ax_weights.figure)
 
     with tab2:
-        st.markdown("### Making subplots ")
+        st.markdown("### Ranked Weights")
         try:
             nf = 2  
             f, axarr = plt.subplots(nf, nf, figsize=(10,10))
             fnum = 0
             for i in range(nf):
                 for j in range(nf):
-                    mfx.plot_weights_ranked(m,factor=fnum, ax=axarr[i][j], n_features=10, x_rank_offset=50, y_repel_coef=0.05, attract_to_points=False)
-                fnum+=1
+                    mfx.plot_weights_ranked(m, factor=fnum, ax=axarr[i][j], n_features=10, x_rank_offset=50, y_repel_coef=0.05, attract_to_points=False)
+                    fnum += 1
             plt.tight_layout()
             st.pyplot()
         except Exception as e:
@@ -273,15 +263,14 @@ if model_file:
     with tab3:
         st.markdown("### Variance Explained Analysis")
         variance_df = m.get_r2(factors=list(range(2))).sort_values("R2", ascending=False)
-        print('\n')
-        st.dataframe(m.get_r2(factors=list(range(4))).sort_values("R2", ascending=False))
+        st.dataframe(variance_df)
 
     with tab4:
         st.markdown("### Factor Correlation Analysis (Pearson)")
         correlation_matrix = m.get_weights(df=True).corr()
-        mfx.plot_factors_correlation(m); plt.title("Pearson r")
+        mfx.plot_factors_correlation(m)
+        plt.title("Pearson r")
         st.pyplot()
-    
 
     with tab5:
         st.markdown("### Enrichment Analysis")        
@@ -309,13 +298,10 @@ if model_file:
         if st.button("Run Enrichment Analysis", key="run_enrichment"):
             with st.spinner("Running enrichment analysis..."):
                 try:
-                    
                     weights_df = process_mofa_weights(m)
                     top_features = get_top_features(weights_df, n_features=n_features)
-                    
-                    # enrichment analysis
                     enrichment_results = run_enrichment(top_features)
-                    
+
                     if not enrichment_results.empty:
                         st.subheader("Factor-Specific Enrichment Plots")
                         for factor in top_features.keys():
@@ -323,9 +309,9 @@ if model_file:
                             if fig:
                                 st.pyplot(fig)
                             st.markdown("---")
-                        
+
                         st.subheader("Complete Enrichment Results")
-                        
+
                         with st.expander("Filter and Sort Options"):
                             col1, col2 = st.columns(2)
                             with col1:
@@ -340,17 +326,17 @@ if model_file:
                                     options=enrichment_results['source'].unique(),
                                     default=enrichment_results['source'].unique()
                                 )
-                        
+
                         filtered_results = enrichment_results[
                             (enrichment_results['factor'].isin(selected_factors)) &
                             (enrichment_results['source'].isin(selected_sources))
                         ]
-                        
+
                         st.dataframe(
                             filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']]
                             .sort_values(['factor', 'p_value'])
                         )
-                        
+
                         csv = filtered_results.to_csv(index=False)
                         st.download_button(
                             label="Download Results CSV",
@@ -360,10 +346,8 @@ if model_file:
                         )
                     else:
                         st.warning("No significant enrichment results found for any factor.")
-                
                 except Exception as e:
                     st.error(f"An error occurred during enrichment analysis: {str(e)}")
-
 else:
     st.markdown("""
         <div style="text-align: center; padding: 4rem 2rem;">
@@ -377,4 +361,4 @@ st.markdown("""
         ---
         **Created by Kristian Alikaj**  
         For more, visit [My GitHub](https://github.com/kris96tian) or [My Portfolio Website](https://kris96tian.github.io/)
-    """)
+""")
