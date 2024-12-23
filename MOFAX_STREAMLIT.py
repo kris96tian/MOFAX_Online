@@ -120,7 +120,7 @@ with st.sidebar:
     if st.button("Run Glioblastoma Model"):
         model_file = "model.hdf5"  
     if st.button("Run Breast Cancer Model"):
-        model_file = "brmodel.hdf5"  
+        model_file = "model_br.hdf5"  
 
 def process_mofa_weights(model):
     weights = model.get_weights()
