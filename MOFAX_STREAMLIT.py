@@ -123,66 +123,6 @@ with st.sidebar:
     if st.button("Run Breast Cancer Model"):
         model_file = "model_br.hdf5"  
 
-def process_mofa_weights(model):
-    weights = model.get_weights()
-    weights_df = pd.DataFrame(weights)
-    weights_df.columns = [f"Factor_{i+1}" for i in range(weights_df.shape[1])]
-    return weights_df
-
-def get_top_features(weights_df, n_features=30):
-    top_features = {}
-    for factor in weights_df.columns:
-        abs_weights = weights_df[factor].abs()
-        top_indices = abs_weights.nlargest(n_features).index
-        top_features[factor] = top_indices.tolist()
-    return top_features
-
-def run_enrichment(features_dict):
-    gp = GProfiler(return_dataframe=True)
-    all_results = []
-    
-    for factor, genes in features_dict.items():
-        try:
-            results = gp.profile(
-                query=genes,
-                organism='hsapiens',
-                sources=['GO:BP', 'KEGG', 'REAC'],
-                user_threshold=0.05
-            )
-            results['factor'] = factor
-            results['neglog10pval'] = -np.log10(results['p_value'])
-            all_results.append(results)
-        except Exception as e:
-            st.error(f"Error in enrichment for {factor}: {str(e)}")
-    
-    if all_results:
-        return pd.concat(all_results, ignore_index=True)
-    return pd.DataFrame()
-
-def plot_enrichment(factor, results, top_n=10):
-    if len(results) == 0:
-        st.warning(f"No significant enrichment for {factor}")
-        return
-    
-    factor_results = results[results['factor'] == factor]
-    if len(factor_results) == 0:
-        st.warning(f"No significant enrichment for {factor}")
-        return
-    
-    fig, ax = plt.subplots(figsize=(12, 6))
-    plot_df = factor_results.nsmallest(top_n, 'p_value')
-    
-    sns.barplot(data=plot_df,
-                y='name',
-                x='neglog10pval',
-                color='steelblue',
-                ax=ax)
-    
-    plt.title(f'Enrichment Results - {factor}')
-    plt.xlabel('-log10(p-value)')
-    plt.tight_layout()
-    return fig
-
 if model_file:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".hdf5") as tmp_file:
         if isinstance(model_file, str): 
