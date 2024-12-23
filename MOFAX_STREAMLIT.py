@@ -190,7 +190,7 @@ if model_file:
 
     m = mfx.mofa_model(temp_filepath)
     weights_df = process_mofa_weights(m)
-    top_features = get_top_features(weights_df, n_features=n_features)
+    top_features = get_top_features(weights_df, n_features=30)
     enrichment_results = run_enrichment(top_features)
     col1, col2, col3 = st.columns(3)
     
