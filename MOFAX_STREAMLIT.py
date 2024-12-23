@@ -146,9 +146,7 @@ if model_file:
 
     with st.sidebar:
         st.markdown("### Analysis Parameters")
-        weights_df = m.get_weights()
-        weights_df = pd.DataFrame(weights_df)
-        selected_factor = st.selectbox("Select Factor", weights_df.columns)
+        selected_factor = st.selectbox("Select Factor", m.factors)
         n_features = st.slider("Number of Features to Display", 
                              min_value=1, 
                              max_value=20, 
@@ -160,65 +158,138 @@ if model_file:
         
         with col1:
             if st.button("📥 Weights Data"):
-                st.dataframe(weights_df)
-                csv = weights_df.to_csv(index=False).encode('utf-8')
+                weights_df = m.get_weights(df=True)
+                csv = weights_df.to_csv(index=False)
                 st.download_button(
-                    label="Download Weights CSV",
+                    label="Download CSV",
                     data=csv,
-                    file_name='weights.csv',
-                    mime='text/csv'
+                    file_name='weights_data.csv',
+                    mime='text/csv',
                 )
-
+        
         with col2:
-            if st.button("📥 Enrichment Results"):
-                weights_df = pd.DataFrame(weights_df)
-                top_features = get_top_features(weights_df, n_features)
-                enrichment_results = run_enrichment(top_features)
-                st.dataframe(enrichment_results)
-                csv = enrichment_results.to_csv(index=False).encode('utf-8')
+            if st.button("📊 Variance Data"):
+                variance_df = m.calculate_variance_explained()
+                csv = variance_df.to_csv(index=False)
                 st.download_button(
-                    label="Download Enrichment CSV",
-                    data=csv,
-                    file_name='enrichment_results.csv',
-                    mime='text/csv'
+                    label="Download CSV",
+                    data=variance_df.to_csv(index=False),
+                    file_name='variance_explained.csv',
+                    mime='text/csv',
                 )
 
-    st.markdown("### Visualizations")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Feature Weights")
-        if selected_factor:
-            factor_weights = weights_df[selected_factor]
-            fig = px.bar(
-                x=factor_weights.index,
-                y=factor_weights.values,
-                labels={'x': 'Feature', 'y': 'Weight'},
-                title=f"Feature Weights for {selected_factor}"
-            )
-            st.plotly_chart(fig, use_container_width=True)
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Feature Weights", "Ranked Weights", "Variance Analysis", "Correlation Matrix", "Enrichment Analysis"])
 
-    with col2:
-        st.markdown("#### Enrichment Analysis")
-        if selected_factor:
-            top_features = get_top_features(weights_df, n_features)
-            enrichment_results = run_enrichment(top_features)
-            fig = plot_enrichment(selected_factor, enrichment_results)
-            if fig:
-                st.pyplot(fig)
+    with tab1:
+        st.markdown("### Top Feature Weights")
+        with st.container():
+            ax_weights = mfx.plot_weights_heatmap(m, n_features=10)
+            plt.tight_layout()
+            st.pyplot(ax_weights.figure)
 
-    st.markdown("### Explore Factor Data")
-    if st.checkbox("Show Raw Factor Data"):
-        factor_data = m.get_factors()
-        st.dataframe(factor_data)
+    with tab2:
+        st.markdown("### Ranked Weights")
+        try:
+            nf = 2  
+            f, axarr = plt.subplots(nf, nf, figsize=(10,10))
+            fnum = 0
+            for i in range(nf):
+                for j in range(nf):
+                    mfx.plot_weights_ranked(m, factor=fnum, ax=axarr[i][j], n_features=10, x_rank_offset=50, y_repel_coef=0.05, attract_to_points=False)
+                    fnum += 1
+            plt.tight_layout()
+            st.pyplot()
+        except Exception as e:
+            st.error(f"Failed to plot ranked weights: {str(e)}")
 
-        csv = factor_data.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download Factor Data CSV",
-            data=csv,
-            file_name='factor_data.csv',
-            mime='text/csv'
-        )
+    with tab3:
+        st.markdown("### Variance Explained Analysis")
+        variance_df = m.get_r2(factors=list(range(2))).sort_values("R2", ascending=False)
+        st.dataframe(variance_df)
+
+    with tab4:
+        st.markdown("### Factor Correlation Analysis (Pearson)")
+        correlation_matrix = m.get_weights(df=True).corr()
+        mfx.plot_factors_correlation(m)
+        plt.title("Pearson r")
+        st.pyplot()
+
+    with tab5:
+        st.markdown("### Enrichment Analysis")        
+        with st.container():
+            col1, col2 = st.columns(2)
+            with col1:
+                n_features = st.slider(
+                    "Number of top features for enrichment",
+                    min_value=10,
+                    max_value=100,
+                    value=30,
+                    step=5,
+                    help="Select how many top features to include in the enrichment analysis"
+                )
+            with col2:
+                top_n_results = st.slider(
+                    "Number of enrichment results to display per plot",
+                    min_value=5,
+                    max_value=20,
+                    value=10,
+                    step=1,
+                    help="Select how many enrichment results to display in each factor plot"
+                )
+
+        if st.button("Run Enrichment Analysis", key="run_enrichment"):
+            with st.spinner("Running enrichment analysis..."):
+                try:
+                    weights_df = process_mofa_weights(m)
+                    top_features = get_top_features(weights_df, n_features=n_features)
+                    enrichment_results = run_enrichment(top_features)
+
+                    if not enrichment_results.empty:
+                        st.subheader("Factor-Specific Enrichment Plots")
+                        for factor in top_features.keys():
+                            fig = plot_enrichment(factor, enrichment_results, top_n=top_n_results)
+                            if fig:
+                                st.pyplot(fig)
+                            st.markdown("---")
+
+                        st.subheader("Complete Enrichment Results")
+
+                        with st.expander("Filter and Sort Options"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                selected_factors = st.multiselect(
+                                    "Filter by Factor",
+                                    options=enrichment_results['factor'].unique(),
+                                    default=enrichment_results['factor'].unique()
+                                )
+                            with col2:
+                                selected_sources = st.multiselect(
+                                    "Filter by Source",
+                                    options=enrichment_results['source'].unique(),
+                                    default=enrichment_results['source'].unique()
+                                )
+
+                        filtered_results = enrichment_results[
+                            (enrichment_results['factor'].isin(selected_factors)) &
+                            (enrichment_results['source'].isin(selected_sources))
+                        ]
+
+                        st.dataframe(
+                            filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']]
+                            .sort_values(['factor', 'p_value'])
+                        )
+
+                        csv = filtered_results.to_csv(index=False)
+                        st.download_button(
+                            label="Download Results CSV",
+                            data=csv,
+                            file_name='enrichment_results.csv',
+                            mime='text/csv',
+                        )
+                    else:
+                        st.warning("No significant enrichment results found for any factor.")
+                except Exception as e:
+                    st.error(f"An error occurred during enrichment analysis: {str(e)}")
 else:
     st.markdown("""
         <div style="text-align: center; padding: 4rem 2rem;">
@@ -233,4 +304,3 @@ st.markdown("""
         **Created by Kristian Alikaj**  
         For more, visit [My GitHub](https://github.com/kris96tian) or [My Portfolio Website](https://kris96tian.github.io/)
 """)
-
