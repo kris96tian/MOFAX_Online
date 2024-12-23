@@ -13,7 +13,7 @@ def process_mofa_weights(model):
     weights_df = pd.DataFrame(weights)
     return weights_df
 
-def get_top_features(weights_df, n_features=30):
+def get_top_features(weights_df, n_features=50):
     top_features = {}
     for factor in range(weights_df.shape[1]):
         abs_weights = np.abs(weights_df.iloc[:, factor])
@@ -189,7 +189,10 @@ if model_file:
             temp_filepath = tmp_file.name
 
     m = mfx.mofa_model(temp_filepath)
-
+    weights_df = process_mofa_weights(m)
+    top_features = get_top_features(weights_df, n_features=30)
+    enrichment_results = run_enrichment(top_features)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown(f"<div class='metric-container'><div class='metric-label'>Total Cells</div><div class='metric-value'>{m.shape[0]:,}</div></div>", unsafe_allow_html=True)
@@ -205,8 +208,8 @@ if model_file:
         selected_factor = st.selectbox("Select Factor", m.factors)
         n_features = st.slider("Number of Features to Display", 
                              min_value=1, 
-                             max_value=50, 
-                             value=40,
+                             max_value=20, 
+                             value=5,
                              help="Adjust the number of features shown in visualizations")
 
         st.markdown("### Export Options")
@@ -233,10 +236,7 @@ if model_file:
                     file_name='variance_explained.csv',
                     mime='text/csv',
                 )
-    weights_df = process_mofa_weights(m)
-    top_features = get_top_features(weights_df, n_features=n_features)
-    enrichment_results = run_enrichment(top_features)
-    col1, col2, col3 = st.columns(3)
+
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Feature Weights", "Ranked Weights", "Variance Analysis", "Correlation Matrix", "Enrichment Analysis"])
 
     with tab1:
