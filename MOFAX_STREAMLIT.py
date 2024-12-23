@@ -126,14 +126,15 @@ with st.sidebar:
 def process_mofa_weights(model):
     weights = model.get_weights()
     weights_df = pd.DataFrame(weights)
+    weights_df.columns = [f"Factor_{i+1}" for i in range(weights_df.shape[1])]
     return weights_df
 
 def get_top_features(weights_df, n_features=30):
     top_features = {}
-    for factor in range(weights_df.shape[1]):
-        abs_weights = np.abs(weights_df.iloc[:, factor])
+    for factor in weights_df.columns:
+        abs_weights = weights_df[factor].abs()
         top_indices = abs_weights.nlargest(n_features).index
-        top_features[f"Factor_{factor+1}"] = top_indices.tolist()
+        top_features[factor] = top_indices.tolist()
     return top_features
 
 def run_enrichment(features_dict):
@@ -205,7 +206,8 @@ if model_file:
 
     with st.sidebar:
         st.markdown("### Analysis Parameters")
-        selected_factor = st.selectbox("Select Factor", m.factors)
+        weights_df = process_mofa_weights(m)
+        selected_factor = st.selectbox("Select Factor", weights_df.columns)
         n_features = st.slider("Number of Features to Display", 
                              min_value=1, 
                              max_value=20, 
@@ -217,7 +219,6 @@ if model_file:
         
         with col1:
             if st.button("📥 Weights Data"):
-                weights_df = process_mofa_weights(m)
                 st.dataframe(weights_df)
                 csv = weights_df.to_csv(index=False).encode('utf-8')
                 st.download_button(
@@ -229,7 +230,6 @@ if model_file:
 
         with col2:
             if st.button("📥 Enrichment Results"):
-                weights_df = process_mofa_weights(m)
                 top_features = get_top_features(weights_df, n_features)
                 enrichment_results = run_enrichment(top_features)
                 st.dataframe(enrichment_results)
@@ -246,7 +246,6 @@ if model_file:
     
     with col1:
         st.markdown("#### Feature Weights")
-        weights_df = process_mofa_weights(m)
         if selected_factor:
             factor_weights = weights_df[selected_factor]
             fig = px.bar(
