@@ -8,7 +8,64 @@ import warnings
 import numpy as np
 import seaborn as sns
 from gprofiler import GProfiler
+def process_mofa_weights(model):
+    weights = model.get_weights()
+    weights_df = pd.DataFrame(weights)
+    return weights_df
 
+def get_top_features(weights_df, n_features=30):
+    top_features = {}
+    for factor in range(weights_df.shape[1]):
+        abs_weights = np.abs(weights_df.iloc[:, factor])
+        top_indices = abs_weights.nlargest(n_features).index
+        top_features[f"Factor_{factor+1}"] = top_indices.tolist()
+    return top_features
+
+def run_enrichment(features_dict):
+    gp = GProfiler(return_dataframe=True)
+    all_results = []
+    
+    for factor, genes in features_dict.items():
+        try:
+            results = gp.profile(
+                query=genes,
+                organism='hsapiens',
+                sources=['GO:BP', 'KEGG', 'REAC'],
+                user_threshold=0.05
+            )
+            results['factor'] = factor
+            results['neglog10pval'] = -np.log10(results['p_value'])
+            all_results.append(results)
+        except Exception as e:
+            st.error(f"Error in enrichment for {factor}: {str(e)}")
+    
+    if all_results:
+        return pd.concat(all_results, ignore_index=True)
+    return pd.DataFrame()
+
+def plot_enrichment(factor, results, top_n=10):
+    if len(results) == 0:
+        st.warning(f"No significant enrichment for {factor}")
+        return
+    
+    factor_results = results[results['factor'] == factor]
+    if len(factor_results) == 0:
+        st.warning(f"No significant enrichment for {factor}")
+        return
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    plot_df = factor_results.nsmallest(top_n, 'p_value')
+    
+    sns.barplot(data=plot_df,
+                y='name',
+                x='neglog10pval',
+                color='steelblue',
+                ax=ax)
+    
+    plt.title(f'Enrichment Results - {factor}')
+    plt.xlabel('-log10(p-value)')
+    plt.tight_layout()
+    return fig
 warnings.filterwarnings("ignore")
 
 st.set_page_config(
@@ -132,7 +189,9 @@ if model_file:
             temp_filepath = tmp_file.name
 
     m = mfx.mofa_model(temp_filepath)
-
+    weights_df = process_mofa_weights(m)
+    top_features = get_top_features(weights_df, n_features=n_features)
+    enrichment_results = run_enrichment(top_features)
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -236,41 +295,39 @@ if model_file:
                     step=1,
                     help="Select how many enrichment results to display in each factor plot"
                 )
-                weights_df = process_mofa_weights(m)
-                top_features = get_top_features(weights_df, n_features=n_features)
-                enrichment_results = run_enrichment(top_features)
-                if not enrichment_results.empty:
-                    st.subheader("Factor-Specific Enrichment Plots")
-                    for factor in top_features.keys():
-                        fig = plot_enrichment(factor, enrichment_results, top_n=top_n_results)
-                        if fig:
-                            st.pyplot(fig)
-                            st.markdown("---")
-                            st.subheader("Complete Enrichment Results")
+
+            if not enrichment_results.empty:
+                st.subheader("Factor-Specific Enrichment Plots")
+                for factor in top_features.keys():
+                    fig = plot_enrichment(factor, enrichment_results, top_n=top_n_results)
+                    if fig:
+                        st.pyplot(fig)
+                        st.markdown("---")
+                        st.subheader("Complete Enrichment Results")
                         
-                    with st.expander("Filter and Sort Options"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            selected_factors = st.multiselect(
-                                "Filter by Factor",
-                                options=enrichment_results['factor'].unique(),
-                                default=enrichment_results['factor'].unique()
-                            )
-                        with col2:
-                            selected_sources = st.multiselect(
-                                "Filter by Source",
-                                options=enrichment_results['source'].unique(),
-                                default=enrichment_results['source'].unique()
-                            )
-                        filtered_results = enrichment_results[(enrichment_results['factor'].isin(selected_factors)) & (enrichment_results['source'].isin(selected_sources))]
-                        st.dataframe(filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']].sort_values(['factor', 'p_value']))
-                        csv = filtered_results.to_csv(index=False)
-                        st.download_button(
-                            label="Download Results CSV",
-                            data=csv,
-                            file_name='enrichment_results.csv',
-                            mime='text/csv',
+                with st.expander("Filter and Sort Options"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        selected_factors = st.multiselect(
+                            "Filter by Factor",
+                            options=enrichment_results['factor'].unique(),
+                            default=enrichment_results['factor'].unique()
                         )
+                    with col2:
+                        selected_sources = st.multiselect(
+                            "Filter by Source",
+                            options=enrichment_results['source'].unique(),
+                            default=enrichment_results['source'].unique()
+                        )
+                filtered_results = enrichment_results[(enrichment_results['factor'].isin(selected_factors)) & (enrichment_results['source'].isin(selected_sources))]
+                st.dataframe(filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']].sort_values(['factor', 'p_value']))
+                csv = filtered_results.to_csv(index=False)
+                st.download_button(
+                    label="Download Results CSV",
+                    data=csv,
+                    file_name='enrichment_results.csv',
+                    mime='text/csv',
+                )
 else:
     st.markdown("""
         <div style="text-align: center; padding: 4rem 2rem;">
