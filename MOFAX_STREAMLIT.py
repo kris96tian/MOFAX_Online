@@ -146,7 +146,8 @@ if model_file:
 
     with st.sidebar:
         st.markdown("### Analysis Parameters")
-        weights_df = process_mofa_weights(m)
+        weights_df = m.get_weights()
+        weights_df = pd.DataFrame(weights_df)
         selected_factor = st.selectbox("Select Factor", weights_df.columns)
         n_features = st.slider("Number of Features to Display", 
                              min_value=1, 
@@ -170,6 +171,7 @@ if model_file:
 
         with col2:
             if st.button("📥 Enrichment Results"):
+                weights_df = pd.DataFrame(weights_df)
                 top_features = get_top_features(weights_df, n_features)
                 enrichment_results = run_enrichment(top_features)
                 st.dataframe(enrichment_results)
@@ -231,3 +233,4 @@ st.markdown("""
         **Created by Kristian Alikaj**  
         For more, visit [My GitHub](https://github.com/kris96tian) or [My Portfolio Website](https://kris96tian.github.io/)
 """)
+
