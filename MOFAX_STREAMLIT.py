@@ -237,59 +237,59 @@ if model_file:
                     help="Select how many enrichment results to display in each factor plot"
                 )
 
-        if st.button("Run Enrichment Analysis", key="run_enrichment"):
-            with st.spinner("Running enrichment analysis..."):
-                try:
-                    weights_df = process_mofa_weights(m)
-                    top_features = get_top_features(weights_df, n_features=n_features)
-                    enrichment_results = run_enrichment(top_features)
-
-                    if not enrichment_results.empty:
-                        st.subheader("Factor-Specific Enrichment Plots")
-                        for factor in top_features.keys():
-                            fig = plot_enrichment(factor, enrichment_results, top_n=top_n_results)
-                            if fig:
-                                st.pyplot(fig)
-                            st.markdown("---")
-
-                        st.subheader("Complete Enrichment Results")
-
-                        with st.expander("Filter and Sort Options"):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                selected_factors = st.multiselect(
-                                    "Filter by Factor",
-                                    options=enrichment_results['factor'].unique(),
-                                    default=enrichment_results['factor'].unique()
-                                )
-                            with col2:
-                                selected_sources = st.multiselect(
-                                    "Filter by Source",
-                                    options=enrichment_results['source'].unique(),
-                                    default=enrichment_results['source'].unique()
-                                )
-
-                        filtered_results = enrichment_results[
-                            (enrichment_results['factor'].isin(selected_factors)) &
-                            (enrichment_results['source'].isin(selected_sources))
-                        ]
-
-                        st.dataframe(
-                            filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']]
-                            .sort_values(['factor', 'p_value'])
-                        )
-
-                        csv = filtered_results.to_csv(index=False)
-                        st.download_button(
-                            label="Download Results CSV",
-                            data=csv,
-                            file_name='enrichment_results.csv',
-                            mime='text/csv',
-                        )
-                    else:
-                        st.warning("No significant enrichment results found for any factor.")
-                except Exception as e:
-                    st.error(f"An error occurred during enrichment analysis: {str(e)}")
+            if st.button("Run Enrichment Analysis", key="run_enrichment"):
+                with st.spinner("Running enrichment analysis..."):
+                    try:
+                        weights_df = process_mofa_weights(m)
+                        top_features = get_top_features(weights_df, n_features=n_features)
+                        enrichment_results = run_enrichment(top_features)
+    
+                        if not enrichment_results.empty:
+                            st.subheader("Factor-Specific Enrichment Plots")
+                            for factor in top_features.keys():
+                                fig = plot_enrichment(factor, enrichment_results, top_n=top_n_results)
+                                if fig:
+                                    st.pyplot(fig)
+                                st.markdown("---")
+    
+                            st.subheader("Complete Enrichment Results")
+    
+                            with st.expander("Filter and Sort Options"):
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    selected_factors = st.multiselect(
+                                        "Filter by Factor",
+                                        options=enrichment_results['factor'].unique(),
+                                        default=enrichment_results['factor'].unique()
+                                    )
+                                with col2:
+                                    selected_sources = st.multiselect(
+                                        "Filter by Source",
+                                        options=enrichment_results['source'].unique(),
+                                        default=enrichment_results['source'].unique()
+                                    )
+    
+                            filtered_results = enrichment_results[
+                                (enrichment_results['factor'].isin(selected_factors)) &
+                                (enrichment_results['source'].isin(selected_sources))
+                            ]
+    
+                            st.dataframe(
+                                filtered_results[['factor', 'source', 'name', 'p_value', 'neglog10pval']]
+                                .sort_values(['factor', 'p_value'])
+                            )
+    
+                            csv = filtered_results.to_csv(index=False)
+                            st.download_button(
+                                label="Download Results CSV",
+                                data=csv,
+                                file_name='enrichment_results.csv',
+                                mime='text/csv',
+                            )
+                        else:
+                            st.warning("No significant enrichment results found for any factor.")
+                    except Exception as e:
+                        st.error(f"An error occurred during enrichment analysis: {str(e)}")
 else:
     st.markdown("""
         <div style="text-align: center; padding: 4rem 2rem;">
