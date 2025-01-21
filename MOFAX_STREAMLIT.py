@@ -195,7 +195,7 @@ if model_file:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown(f"<div class='metric-container'><div class='metric-label'>Total Cells</div><div class='metric-value'>{m.shape[0]:,}</div></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-container'><div class='metric-label'>Total Samples</div><div class='metric-value'>{m.shape[0]:,}</div></div>", unsafe_allow_html=True)
     
     with col2:
         st.markdown(f"<div class='metric-container'><div class='metric-label'>Features</div><div class='metric-value'>{m.shape[1]:,}</div></div>", unsafe_allow_html=True)
